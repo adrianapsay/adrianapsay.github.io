@@ -1,4 +1,4 @@
-import { profile, news } from "@/lib/data";
+import { profile, timeline } from "@/lib/data";
 
 export default function Home() {
   return (
@@ -30,7 +30,7 @@ export default function Home() {
       <section>
         <h2 className="mb-4 text-lg font-semibold">News</h2>
         <ul className="space-y-2">
-          {news.map((item, i) => (
+          {timeline.map((item, i) => (
             <li key={i} className="flex gap-4 text-sm leading-relaxed">
               <span className="w-16 shrink-0 text-neutral-500">{item.date}</span>
               <span>{item.text}</span>
