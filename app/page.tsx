@@ -10,8 +10,8 @@ export default function Home() {
           className="mx-auto mb-6 block w-48 rounded-lg sm:float-right sm:mx-0 sm:mb-4 sm:ml-8 sm:w-64"
         />
         <h1 className="mb-2 text-2xl font-semibold">{profile.name}</h1>
-        <p className="font-courier text-sm text-neutral-600">{profile.email}</p>
-        <div className="mt-1 flex gap-3 font-courier text-sm">
+        <p className="text-center font-courier text-sm text-neutral-600">{profile.email}</p>
+        <div className="mt-1 flex justify-center gap-3 font-courier text-sm">
           {profile.links.map((link) => (
             <a
               key={link.href}

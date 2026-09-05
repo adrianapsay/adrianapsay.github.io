@@ -1,9 +1,9 @@
 ---
 title: "Hello, World"
 date: "2026-09-04"
-excerpt: "The first post on this site."
+excerpt: "sup!"
 ---
 
-This is a placeholder post. Replace it with real writing, or delete it and add your own markdown files to `content/posts/`.
+hey! first post on this site. wanted to cultivate some of my thoughts regarding certain things here. not much else to say here, but thanks for stopping by!
 
-Each file needs a `title`, `date`, and optional `excerpt` in its frontmatter — the rest of the file is the post body in markdown.
+(wanted to see if formatting would work properly lol)
