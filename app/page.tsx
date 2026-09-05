@@ -7,7 +7,7 @@ export default function Home() {
         <img
           src="/profile.jpg"
           alt={profile.name}
-          className="float-right ml-8 mb-4 w-64 rounded-lg"
+          className="mx-auto mb-6 block w-48 rounded-lg sm:float-right sm:mx-0 sm:mb-4 sm:ml-8 sm:w-64"
         />
         <h1 className="mb-2 text-2xl font-semibold">{profile.name}</h1>
         <p className="font-courier text-sm text-neutral-600">{profile.email}</p>
