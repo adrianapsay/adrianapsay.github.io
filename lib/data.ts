@@ -11,7 +11,7 @@ export const profile = {
 };
 
 export const timeline: { date: string; text: string }[] = [
-  { date: "2026-08", text: "Beginning work as a Software Engineer Researcher with NASA Goddard Space Flight Center! (Berkeley Capstone)" },
+  { date: "2026-09", text: "Beginning work as a Software Engineer Researcher with NASA Goddard Space Flight Center! (Berkeley Capstone)" },
   { date: "2026-08", text: "Started my Master's in EECS @ UC Berkeley!" },
   { date: "2026-06", text: "Graduated from UC San Diego with a B.S. in Data Science!" },
   { date: "2026-03", text: "HDSI Capstone Showcase - Research w/ Honda Research Institute on LLM agent behavior evaluation on hyperparameter optimization for ML!" },
