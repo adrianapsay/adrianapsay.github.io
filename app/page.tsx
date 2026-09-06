@@ -24,7 +24,11 @@ export default function Home() {
             </a>
           ))}
         </div>
-        <p className="mt-4 leading-relaxed">{profile.bio}</p>
+        <div className="mt-4 space-y-4 leading-relaxed">
+          {profile.bio.map((paragraph, i) => (
+            <p key={i}>{paragraph}</p>
+          ))}
+        </div>
       </section>
 
       <section>

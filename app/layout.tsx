@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: profile.name,
-  description: profile.bio,
+  description: profile.bio[0],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -25,7 +25,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-white text-neutral-900">
+      <body className="min-h-full flex flex-col bg-[#fffbf3] text-neutral-900">
         <div className="mx-auto w-full max-w-2xl flex-1 px-6 py-12">
           <header className="mb-12 flex items-baseline justify-between">
             <Link href="/" className="font-medium hover:underline">
