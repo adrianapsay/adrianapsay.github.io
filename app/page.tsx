@@ -32,7 +32,7 @@ export default function Home() {
       </section>
 
       <section>
-        <h2 className="mb-4 text-lg font-semibold">News</h2>
+        <h2 className="mb-4 text-lg font-semibold">Recent-ish Updates...</h2>
         <ul className="space-y-2">
           {timeline.map((item, i) => (
             <li key={i} className="flex gap-4 text-sm leading-relaxed">
