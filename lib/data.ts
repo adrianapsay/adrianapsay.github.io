@@ -16,11 +16,23 @@ export const profile = {
   ],
 };
 
-export const timeline: { date: string; text: string }[] = [
-  // { date: "2026-09", text: "Beginning work with NASA Goddard Space Flight Center! (Berkeley Capstone)" },
+export const timeline: {
+  date: string;
+  text: string;
+  links?: { label: string; href: string }[];
+}[] = [
+  { date: "2026-09", text: "Beginning work with NASA Goddard! (Berkeley Capstone)" },
   { date: "2026-08", text: "Started my Master's in EECS @ UC Berkeley!" },
   { date: "2026-06", text: "Graduated from UC San Diego with a B.S. in Data Science!" },
-  { date: "2026-03", text: "HDSI Capstone Showcase - Research w/ Honda Research Institute on LLM agent behavior evaluation on hyperparameter optimization for ML!" },
+  {
+    date: "2026-03",
+    text: "HDSI Capstone Showcase - Research w/ Honda Research Institute on LLM agent behavior evaluation given various contexts on hyperparameter optimization for ML!",
+    links: [
+      { label: "website", href: "https://adrianapsay.github.io/context-eval-website/" },
+      { label: "poster", href: "https://drive.google.com/file/d/1ngxxhpaqj3E0UmWbqn7ZGpFGzqdsCg03/view?usp=sharing" },
+      { label: "report", href: "https://drive.google.com/file/d/1VAFnXJ1PfBRKZegr7yxzkTpTZrTrJRH0/view?usp=sharing" },
+    ],
+  },
   { date: "2026-03", text: "Wrapped up TAship for DSC 20 and COGS 9 @ UC San Diego!" },
   { date: "2025-09", text: "Finished my internship at Seagate Technology as a Data Science Intern!" },
   { date: "2025-06", text: "Finished my internship at the San Diego Sheriff's Department as a Data Engineer Intern!" },

@@ -32,10 +32,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               {profile.name}
             </Link>
             <nav className="flex gap-4 text-sm text-neutral-600">
-              <Link href="/" className="hover:text-neutral-900 hover:underline">
+              <Link href="/" className="hover:cursor-none hover:text-[#003262] hover:underline">
                 Home
               </Link>
-              <Link href="/blog" className="hover:text-neutral-900 hover:underline">
+              <Link href="/blog" className="hover:cursor-none hover:text-[#003262] hover:underline">
                 Blog
               </Link>
             </nav>

@@ -18,7 +18,11 @@ export default function Home() {
               href={link.href}
               target="_blank"
               rel="noreferrer"
-              className="text-neutral-600 hover:text-neutral-900 hover:underline"
+              className={`text-neutral-600 hover:cursor-none hover:underline ${
+                link.label === "GitHub" || link.label === "LinkedIn"
+                  ? "hover:text-[#0A66C2]"
+                  : "hover:text-neutral-900"
+              }`}
             >
               {link.label}
             </a>
@@ -37,7 +41,20 @@ export default function Home() {
           {timeline.map((item, i) => (
             <li key={i} className="flex gap-4 text-sm leading-relaxed">
               <span className="w-16 shrink-0 text-neutral-500">{item.date}</span>
-              <span>{item.text}</span>
+              <span>
+                {item.text}
+                {item.links?.map((link) => (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="ml-1 font-courier text-neutral-600 hover:cursor-none hover:text-[#E4002B] hover:underline"
+                  >
+                    [{link.label}]
+                  </a>
+                ))}
+              </span>
             </li>
           ))}
         </ul>
