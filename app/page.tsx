@@ -9,7 +9,6 @@ export default function Home() {
 
       <main>
         <section className="hero">
-          <h1>{profile.name}</h1>
           {profile.bio.map((paragraph, i) => (
             <p key={i} className={i === 0 ? "tagline" : undefined}>
               {paragraph}

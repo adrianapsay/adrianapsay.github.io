@@ -89,6 +89,7 @@ interface Craft {
   cos: number; sin: number;
 }
 interface Puff { x: number; y: number; vx: number; vy: number; age: number; life: number; d: number }
+interface Meteor { x: number; y: number; ux: number; uy: number; speed: number; t: number; life: number; len: number }
 
 // aircraft parts
 const FUSE = 1, WING = 2, STAB = 3, CANOPY = 4, PROP = 5, NOZZLE = 6, FLAME = 7;
@@ -126,6 +127,8 @@ export function startSky(stage: HTMLElement, canvas: HTMLCanvasElement, photo: H
   let birds: Bird[] = [], seeds: Seed[] = [], rings: Ring[] = [];
   let flock: Flock | null = null, nextFlock = 4;
   let crafts: Craft[] = [], puffs: Puff[] = [], vapor = new Float32Array(0), vdir = new Uint8Array(0);
+  // sun (light) or moon (dark) above the photo's corner; shooting stars at night
+  let celX = 0, celY = 0, celR = 30, meteor: Meteor | null = null, nextMeteor = Infinity;
   let nextPlane = rand(7, 11), nextJet = rand(16, 21);
   let lastRing: { x: number; y: number } | null = null;
   let raf = 0, destroyed = false, booted = false;
@@ -156,6 +159,11 @@ export function startSky(stage: HTMLElement, canvas: HTMLCanvasElement, photo: H
     for (let i = 0; i < total; i++) { const h = hash(i % cols, (i / cols) | 0); if (h < 0.04) dots[i] = h / 0.04 + 0.001; }
     const pr = photo.getBoundingClientRect();
     box = { x0: pr.left - rect.left, y0: pr.top - rect.top, x1: pr.right - rect.left, y1: pr.bottom - rect.top };
+    celR = Math.min(52, Math.max(22, W * 0.04));
+    celX = W * 0.82; celY = H * 0.22;
+    // keep it clear of the photo when the sky is narrow
+    if (celX + celR * 2 > box.x0 && celX - celR * 2 < box.x1) celY = Math.min(celY, box.y0 - celR * 2);
+    celY = Math.max(celR * 1.7, celY);
   }
   function inPhoto(x: number, y: number) { return x > box.x0 && x < box.x1 && y > box.y0 && y < box.y1; }
 
@@ -570,6 +578,84 @@ export function startSky(stage: HTMLElement, canvas: HTMLCanvasElement, photo: H
     }
   }
 
+  // ---- sun, moon and shooting stars --------------------------------------------------------
+
+  // draws the sun (light) or moon (dark) into an open-sky cell; false when the cell misses it
+  function paintCelestial(i: number, px: number, py: number) {
+    const dx = px - celX, dy = py - celY, d = Math.hypot(dx, dy) / celR, rim = (cw * 0.9) / celR;
+    if (colors.light) {
+      if (d < 1) {
+        if (d > 1 - rim) { chars[i] = contour(dx, dy); role[i] = 5; alpha[i] = 1; }
+        else {
+          // bright core, deeper toward the limb, with a slow shimmer
+          const k = Math.min(0.99, Math.max(0, 0.15 + 0.75 * d + 0.08 * Math.sin(time * 1.6 + dx * 0.2 + dy * 0.3)));
+          chars[i] = ":;tS%X8#"[Math.floor(k * 8)]; role[i] = 5; alpha[i] = 0.75 + 0.25 * k;
+        }
+        return true;
+      }
+      // twelve rays, long and short, slowly turning and breathing
+      if (d > 1.25 && d < 2.05) {
+        const step = (Math.PI * 2) / 12, a = Math.atan2(dy, dx) - time * 0.12, k = Math.round(a / step);
+        const across = Math.abs(a - k * step) * d * celR;
+        const len = (k % 2 ? 1.6 : 1.95) + 0.08 * Math.sin(time * 2 + k);
+        if (across < cw * 0.65 && d < len) { chars[i] = dirChar(dx, dy); role[i] = 5; alpha[i] = 0.55 + 0.3 * (1 - (d - 1.25) / 0.8); return true; }
+      }
+      return false;
+    }
+    if (d < 1) {
+      // crescent: the disc minus a shadow disc offset to the upper right, with faint earthshine
+      const sx = dx - celR * 0.85, sy = dy + celR * 0.35, shadow = Math.hypot(sx, sy) / celR;
+      if (shadow < 0.95) { chars[i] = d > 1 - rim ? contour(dx, dy) : "."; role[i] = 4; alpha[i] = d > 1 - rim ? 0.35 : 0.16; return true; }
+      if (d > 1 - rim) { chars[i] = contour(dx, dy); role[i] = 1; alpha[i] = 1; return true; }
+      if (shadow < 0.95 + rim) { chars[i] = contour(sx, sy); role[i] = 1; alpha[i] = 0.8; return true; }
+      // maria and craters as darker patches
+      const crater = noise(dx / 9 + 11, dy / 7 + 3) > 0.62;
+      const k = Math.min(0.99, 0.2 + 0.5 * d);
+      chars[i] = crater ? "o%"[Math.floor(hash(px, py) * 2)] : ":;tS"[Math.floor(k * 4)];
+      role[i] = crater ? 7 : 1; alpha[i] = crater ? 0.85 : 0.7 + 0.3 * k;
+      return true;
+    }
+    // a soft halo
+    if (d < 1.55 && hash(px * 0.37, py * 0.53) < 0.4) { chars[i] = "."; role[i] = 4; alpha[i] = 0.3 * (1.55 - d) / 0.55; return true; }
+    return false;
+  }
+
+  // a shooting star streaking down across the upper sky, every 45 to 60 seconds at night
+  function stepMeteor(dt: number) {
+    if (colors.light || reduced) { meteor = null; return; }
+    if (!meteor && time >= nextMeteor) {
+      // start beside the photo and head away from it, so the streak stays in open sky
+      const right = Math.random() < 0.5, ang = right ? rand(0.55, 0.85) : Math.PI - rand(0.55, 0.85);
+      const room = right ? W - box.x1 : box.x0;
+      meteor = {
+        x: room > 140 ? (right ? box.x1 + room * rand(0, 0.55) : box.x0 * rand(0.45, 1)) : W * rand(0.2, 0.8),
+        y: H * rand(0.03, 0.25),
+        ux: Math.cos(ang), uy: Math.sin(ang), speed: rand(650, 900), t: 0, life: rand(0.8, 1.1), len: rand(150, 230),
+      };
+      nextMeteor = time + rand(45, 60);
+    }
+    const m = meteor;
+    if (!m) return;
+    m.t += dt; m.x += m.ux * m.speed * dt; m.y += m.uy * m.speed * dt;
+    if (m.t > m.life) { meteor = null; return; }
+    const fade = Math.min(1, m.t / 0.1) * (1 - smooth(m.life * 0.6, m.life, m.t)), glyph = dirChar(m.ux, m.uy);
+    const put = (x: number, y: number, ch: string, al: number) => {
+      const c = Math.floor(x / cw), r = Math.floor(y / CELL_H);
+      if (c < 0 || c >= cols || r < 0 || r >= rows) return;
+      const i = r * cols + c;
+      if (chars[i] && chars[i] !== " ") return;   // birds and aircraft stay in front
+      chars[i] = ch; role[i] = 1; alpha[i] = al;
+    };
+    // tail first, so the head wins its cell
+    for (let s = m.len; s > cw * 0.8; s -= cw * 0.6) {
+      const k = 1 - s / m.len;
+      put(m.x - m.ux * s, m.y - m.uy * s, s < m.len * 0.6 ? glyph : ".", fade * Math.min(1, 0.15 + Math.pow(k, 0.8)));
+    }
+    // a little glint around the head
+    for (const [ox, oy] of [[-cw, 0], [cw, 0], [0, -CELL_H], [0, CELL_H]]) put(m.x + ox, m.y + oy, "+", fade * 0.35);
+    put(m.x, m.y, "*", fade);
+  }
+
   // wingtip trails
   function stampTips(b: Bird, dt: number) {
     const s = b.s, tipU = WING_U + s.chord * 0.4 - b.sweep - s.chord * 0.25, di = dirIndex(b.cos, b.sin);
@@ -664,6 +750,7 @@ export function startSky(stage: HTMLElement, canvas: HTMLCanvasElement, photo: H
     for (const b of birds) rasterBird(b);
     stepAircraft(dt);
     stepFlock(dt);
+    stepMeteor(dt);
 
     seeds = seeds.filter((p) => {
       p.age += dt; p.y += 12 * dt; p.x += Math.sin(p.age * 2.2 + p.sway) * 10 * dt;
@@ -689,6 +776,8 @@ export function startSky(stage: HTMLElement, canvas: HTMLCanvasElement, photo: H
       }
       if (wake[i] > 0.06) { chars[i] = wake[i] > 0.3 ? DIRS[wdir[i]] : "."; role[i] = 2; alpha[i] = Math.min(0.6, wake[i] * 1.2); continue; }
       const x = (i % cols) * cw, y = ((i / cols) | 0) * CELL_H;
+      const px = x + cw / 2, py = y + CELL_H / 2;
+      if (Math.abs(px - celX) < celR * 2.1 && Math.abs(py - celY) < celR * 2.1 && paintCelestial(i, px, py)) continue;
       const n = 0.65 * noise((x + drift) / 120, y / 60) + 0.35 * noise((x + drift * 1.4) / 45, y / 24);
       if (n > 0.6) {
         const k = Math.min(1, (n - 0.6) / 0.26);
@@ -744,6 +833,7 @@ export function startSky(stage: HTMLElement, canvas: HTMLCanvasElement, photo: H
     if (destroyed || booted) return;
     booted = true;
     readColors(); resize(); settle();
+    if (!colors.light) nextMeteor = rand(2, 9);
     frame(1 / 60);
     if (reduced) return;
     let last = performance.now();
@@ -759,7 +849,13 @@ export function startSky(stage: HTMLElement, canvas: HTMLCanvasElement, photo: H
   stage.addEventListener("click", onClick);
   window.addEventListener("resize", onResize);
   // the theme toggle swaps palettes without restarting the sky
-  const themeWatch = new MutationObserver(() => { readColors(); if (booted && reduced) frame(0.001); });
+  const themeWatch = new MutationObserver(() => {
+    const wasLight = colors?.light;
+    readColors();
+    // switching to night brings a shooting star within the first ten seconds
+    if (wasLight && !colors.light) { meteor = null; nextMeteor = time + rand(2, 9); }
+    if (booted && reduced) frame(0.001);
+  });
   themeWatch.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
 
   const ready = document.fonts?.ready ?? Promise.resolve();

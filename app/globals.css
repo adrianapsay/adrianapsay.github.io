@@ -80,7 +80,7 @@ footer .sep { margin: 0 10px; }
 .hero p { color: var(--mid); }
 .hero p + p { margin-top: 18px; }
 .hero .tagline { color: var(--text); }
-.hero .socials { font: var(--fs-meta)/1.6 var(--mono); margin-top: 14px; text-transform: lowercase; }
+.hero .socials { font: var(--fs-meta)/1.6 var(--mono); margin-top: 28px; text-align: center; text-transform: lowercase; }
 .hero .socials .email { color: var(--mid); }
 .hero .socials .sep { margin: 0 10px; color: var(--dim); }
 
