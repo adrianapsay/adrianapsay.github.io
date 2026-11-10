@@ -13,7 +13,7 @@ const HEAD_U = 0.3, TAIL_U = 0.2, WING_U = 0.05, BODY_A = 0.27;
 // colour roles: 1 text, 2 link/teal, 3 eye, 4 dim, 5 orange, 6 red, 7 mid
 const FONT_PX = 9, CELL_H = 10;
 const DIRS = "-\\|/";
-const CLOUD = "..:";
+const CLOUD = ".::";
 // sub-cell samples for anti-aliased silhouettes
 const SUB = [0.25, 0.3, 0.75, 0.3, 0.25, 0.72, 0.75, 0.72];
 
@@ -482,9 +482,9 @@ export function startSky(stage: HTMLElement, canvas: HTMLCanvasElement, photo: H
       if (wake[i] > 0.06) { chars[i] = wake[i] > 0.3 ? DIRS[wdir[i]] : "."; role[i] = 2; alpha[i] = Math.min(0.6, wake[i] * 1.2); continue; }
       const x = (i % cols) * cw, y = ((i / cols) | 0) * CELL_H;
       const n = 0.65 * noise((x + drift) / 120, y / 60) + 0.35 * noise((x + drift * 1.4) / 45, y / 24);
-      if (n > 0.66) {
-        const k = Math.min(1, (n - 0.66) / 0.24);
-        chars[i] = CLOUD[Math.min(CLOUD.length - 1, Math.floor(k * CLOUD.length))]; role[i] = 4; alpha[i] = 0.12 + 0.2 * k;
+      if (n > 0.6) {
+        const k = Math.min(1, (n - 0.6) / 0.26);
+        chars[i] = CLOUD[Math.min(CLOUD.length - 1, Math.floor(k * CLOUD.length))]; role[i] = k > 0.55 ? 7 : 4; alpha[i] = 0.2 + 0.32 * k;
         continue;
       }
       const d = dots[i];
