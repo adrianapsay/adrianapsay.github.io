@@ -1,16 +1,20 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { IBM_Plex_Mono, Source_Serif_4 } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import { profile } from "@/lib/data";
+import { Nav } from "@/components/Nav";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-plex-mono",
+  weight: ["400", "500", "600"],
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const sourceSerif = Source_Serif_4({
+  variable: "--font-source-serif",
+  style: ["normal", "italic"],
+  axes: ["opsz"],
   subsets: ["latin"],
 });
 
@@ -19,29 +23,28 @@ export const metadata: Metadata = {
   description: profile.bio[0],
 };
 
+// Dark by default; light only when the visitor picked it. Runs before first paint.
+const themeScript = `(function(){try{document.documentElement.setAttribute("data-theme",localStorage.getItem("theme")==="light"?"light":"dark")}catch(e){}})()`;
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      data-theme="dark"
+      className={`${plexMono.variable} ${sourceSerif.variable}`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col bg-[#fffbf3] text-neutral-900">
-        <div className="mx-auto w-full max-w-2xl flex-1 px-6 py-12">
-          <header className="mb-12 flex items-baseline justify-between">
-            <Link href="/" className="font-medium hover:underline">
-              {profile.name}
-            </Link>
-            <nav className="flex gap-4 text-sm text-neutral-600">
-              <Link href="/" className="hover:cursor-none hover:text-[#003262] hover:underline">
-                Home
-              </Link>
-              <Link href="/blog" className="hover:cursor-none hover:text-[#003262] hover:underline">
-                Blog
-              </Link>
-            </nav>
-          </header>
-          <main>{children}</main>
-        </div>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
+      <body>
+        <header>
+          <Link className="name" href="/">
+            {profile.name}
+          </Link>
+          <Nav />
+        </header>
+        {children}
       </body>
     </html>
   );

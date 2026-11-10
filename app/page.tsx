@@ -1,64 +1,56 @@
+import { Fragment } from "react";
 import { profile, timeline } from "@/lib/data";
+import { BirdSky } from "@/components/BirdSky";
 
 export default function Home() {
   return (
-    <div className="space-y-14">
-      <section className="flow-root">
-        <img
-          src="/profile.jpg"
-          alt={profile.name}
-          className="mx-auto mb-6 block w-48 rounded-lg sm:float-right sm:mx-0 sm:mb-4 sm:ml-8 sm:w-64"
-        />
-        <h1 className="mb-2 text-2xl font-semibold">{profile.name}</h1>
-        <p className="text-center font-courier text-sm text-neutral-600">{profile.email}</p>
-        <div className="mt-1 flex justify-center gap-3 font-courier text-sm">
-          {profile.links.map((link) => (
-            <a
-              key={link.href}
-              href={link.href}
-              target="_blank"
-              rel="noreferrer"
-              className={`text-neutral-600 hover:cursor-none hover:underline ${
-                link.label === "GitHub" || link.label === "LinkedIn"
-                  ? "hover:text-[#0A66C2]"
-                  : "hover:text-neutral-900"
-              }`}
-            >
-              {link.label}
-            </a>
-          ))}
-        </div>
-        <div className="mt-4 space-y-4 leading-relaxed">
-          {profile.bio.map((paragraph, i) => (
-            <p key={i}>{paragraph}</p>
-          ))}
-        </div>
-      </section>
+    <>
+      <BirdSky src="/profile.jpg" alt={profile.name} />
 
-      <section>
-        <h2 className="mb-4 text-lg font-semibold">Recent-ish Updates...</h2>
-        <ul className="space-y-2">
-          {timeline.map((item, i) => (
-            <li key={i} className="flex gap-4 text-sm leading-relaxed">
-              <span className="w-16 shrink-0 text-neutral-500">{item.date}</span>
-              <span>
-                {item.text}
-                {item.links?.map((link) => (
-                  <a
-                    key={link.href}
-                    href={link.href}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="ml-1 font-courier text-neutral-600 hover:cursor-none hover:text-[#E4002B] hover:underline"
-                  >
-                    [{link.label}]
-                  </a>
-                ))}
-              </span>
-            </li>
+      <main>
+        <section className="hero">
+          <h1>{profile.name}</h1>
+          {profile.bio.map((paragraph, i) => (
+            <p key={i} className={i === 0 ? "tagline" : undefined}>
+              {paragraph}
+            </p>
           ))}
-        </ul>
-      </section>
-    </div>
+          <p className="socials">
+            <span className="email">{profile.email}</span>
+            {profile.links.map((link) => (
+              <Fragment key={link.href}>
+                <span className="sep">&middot;</span>
+                <a href={link.href} target="_blank" rel="noreferrer">
+                  {link.label}
+                </a>
+              </Fragment>
+            ))}
+          </p>
+        </section>
+
+        <section>
+          <h2 className="section-title">Recent-ish Updates...</h2>
+          <ul className="timeline">
+            {timeline.map((item, i) => (
+              <li key={i}>
+                <time>{item.date}</time>
+                <p>
+                  {item.text}
+                  {item.links && (
+                    <span className="links">
+                      {item.links.map((link) => (
+                        <a key={link.href} href={link.href} target="_blank" rel="noreferrer">
+                          {link.label}
+                        </a>
+                      ))}
+                    </span>
+                  )}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </main>
+    </>
   );
 }

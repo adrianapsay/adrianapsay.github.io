@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { getPostBySlug, getPostSlugs } from "@/lib/posts";
+import { profile } from "@/lib/data";
 
 export function generateStaticParams() {
   return getPostSlugs().map((slug) => ({ slug }));
@@ -13,13 +15,17 @@ export default async function Post({
   const post = await getPostBySlug(slug);
 
   return (
-    <article>
-      <h1 className="mb-2 text-2xl font-semibold">{post.title}</h1>
-      <div className="mb-8 text-sm text-neutral-500">{post.date}</div>
-      <div
-        className="prose prose-neutral max-w-none prose-a:text-neutral-900"
-        dangerouslySetInnerHTML={{ __html: post.contentHtml }}
-      />
-    </article>
+    <main className="post">
+      <h1>{post.title}</h1>
+      <div className="post-meta">
+        <span>{profile.name}</span>
+        <span>&middot;</span>
+        <time>{post.date}</time>
+      </div>
+      <article dangerouslySetInnerHTML={{ __html: post.contentHtml }} />
+      <div className="post-foot">
+        <Link href="/blog">&larr; blog</Link>
+      </div>
+    </main>
   );
 }
