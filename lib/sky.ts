@@ -82,6 +82,16 @@ interface Bird {
 interface Seed { x: number; y: number; age: number; sway: number; eaten?: boolean }
 interface Ring { x: number; y: number; r: number; life: number }
 interface Flock { x: number; y: number; heading: number; speed: number; n: number; t: number }
+interface Craft {
+  kind: "plane" | "jet";
+  x: number; y: number; heading: number; base: number; L: number; speed: number; t: number;
+  roll: number; rollAt: number; rollDir: number; spin: number; flick: number; puffT: number;
+  cos: number; sin: number;
+}
+interface Puff { x: number; y: number; vx: number; vy: number; age: number; life: number; d: number }
+
+// aircraft parts
+const FUSE = 1, WING = 2, STAB = 3, CANOPY = 4, PROP = 5, NOZZLE = 6, FLAME = 7;
 interface Colors { bg: string; text: string; dim: string; mid: string; link: string; orange: string; red: string; light: boolean }
 
 function hash(x: number, y: number) { const h = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return h - Math.floor(h); }
@@ -115,6 +125,8 @@ export function startSky(stage: HTMLElement, canvas: HTMLCanvasElement, photo: H
   let colors: Colors;
   let birds: Bird[] = [], seeds: Seed[] = [], rings: Ring[] = [];
   let flock: Flock | null = null, nextFlock = 4;
+  let crafts: Craft[] = [], puffs: Puff[] = [], vapor = new Float32Array(0), vdir = new Uint8Array(0);
+  let nextPlane = rand(7, 11), nextJet = rand(16, 21);
   let lastRing: { x: number; y: number } | null = null;
   let raf = 0, destroyed = false, booted = false;
 
@@ -137,7 +149,7 @@ export function startSky(stage: HTMLElement, canvas: HTMLCanvasElement, photo: H
     cw = ctx!.measureText("M").width || 5.4;
     cols = Math.ceil(W / cw); rows = Math.ceil(H / CELL_H);
     const total = cols * rows;
-    wake = new Float32Array(total); wdir = new Uint8Array(total);
+    wake = new Float32Array(total); wdir = new Uint8Array(total); vapor = new Float32Array(total); vdir = new Uint8Array(total);
     role = new Uint8Array(total); alpha = new Float32Array(total); chars = new Array(total).fill(null);
     // ~4% of cells hold a faint dot (a star, at night); the value seeds its twinkle
     dots = new Float32Array(total);
@@ -358,7 +370,11 @@ export function startSky(stage: HTMLElement, canvas: HTMLCanvasElement, photo: H
       }
       chars[idx] = ch; role[idx] = ro; alpha[idx] = al;
     }
-    // a little clear air around the bird so trails and stars don't touch it
+    clearAround();
+  }
+
+  // a little clear air around whatever was just drawn so trails and stars don't touch it
+  function clearAround() {
     for (const idx of covered) {
       const c = idx % cols, r = (idx / cols) | 0;
       for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
@@ -366,6 +382,190 @@ export function startSky(stage: HTMLElement, canvas: HTMLCanvasElement, photo: H
         if (cc < 0 || cc >= cols || rr < 0 || rr >= rows) continue;
         const j = rr * cols + cc;
         if (!chars[j]) { chars[j] = " "; role[j] = 0; }
+      }
+    }
+  }
+
+  // ---- aircraft ---------------------------------------------------------------------------
+  // now and then a stunt plane (sometimes doing a barrel roll) or a fighter jet crosses the sky,
+  // above the birds; the jet's exhaust leaves a contrail that spreads, drifts and fades away
+
+  function launch(kind: Craft["kind"]) {
+    const L = Math.min(110, Math.max(60, W * 0.085)), R = L * 0.85;
+    const dir = Math.random() < 0.5 ? 1 : -1, y = H * rand(0.12, 0.88);
+    let tilt = rand(-0.28, 0.28);
+    const endY = y + dir * W * Math.tan(tilt);
+    if (endY < H * 0.06 || endY > H * 0.94) tilt = -tilt;
+    const heading = (dir > 0 ? 0 : Math.PI) + tilt;
+    const speed = kind === "jet" ? rand(190, 240) : rand(80, 100);
+    const crossing = (W + 2 * R) / speed;
+    crafts.push({
+      kind, x: dir > 0 ? -R : W + R, y, heading, base: heading, L, speed, t: 0,
+      roll: 0, rollAt: kind === "plane" && Math.random() < 0.7 ? crossing * rand(0.3, 0.55) : -1,
+      rollDir: Math.random() < 0.5 ? 1 : -1, spin: 0, flick: 1, puffT: 0,
+      cos: Math.cos(heading), sin: Math.sin(heading),
+    });
+  }
+
+  function craftWorld(a: Craft, u: number, v: number): [number, number] {
+    return [a.x + (u * a.cos - v * a.sin) * a.L, a.y + (u * a.sin + v * a.cos) * a.L];
+  }
+
+  // returns false once the craft has left the sky
+  function stepCraft(a: Craft, dt: number) {
+    a.t += dt;
+    if (a.kind === "plane") {
+      a.heading = a.base + 0.04 * Math.sin(a.t * 0.7);
+      if (a.rollAt >= 0) a.roll = a.rollDir * 6.283 * smooth(a.rollAt, a.rollAt + 1.5, a.t);
+      a.spin += dt * 31;
+    } else {
+      a.flick = rand(0.7, 1.15);
+    }
+    a.cos = Math.cos(a.heading); a.sin = Math.sin(a.heading);
+    a.x += a.cos * a.speed * dt; a.y += a.sin * a.speed * dt;
+
+    if (a.kind === "jet") {
+      // exhaust puffs from both nozzles, one every few pixels of flight
+      a.puffT -= dt;
+      const pd = dirIndex(a.cos, a.sin);
+      while (a.puffT <= 0) {
+        a.puffT += 4 / a.speed;
+        for (const side of [-1, 1]) {
+          const [x, y] = craftWorld(a, -0.62, side * 0.05);
+          puffs.push({ x, y, vx: 6 + rand(-6, 6), vy: rand(-6, 6), age: 0, life: rand(2.4, 3.4), d: pd });
+        }
+      }
+      // faint vapour off the wingtips
+      const sc = Math.max(0.1, Math.abs(Math.cos(a.roll))), di = dirIndex(a.cos, a.sin);
+      for (const side of [-1, 1]) {
+        const [x, y] = craftWorld(a, -0.31, side * 0.5 * sc), c = Math.floor(x / cw), r = Math.floor(y / CELL_H);
+        if (c < 0 || c >= cols || r < 0 || r >= rows) continue;
+        const i = r * cols + c;
+        wake[i] = Math.min(1, wake[i] + 3 * dt); wdir[i] = di;
+      }
+    }
+    const m = a.L + 20;
+    return !(a.x < -m - 40 || a.x > W + m + 40 || a.y < -m - 40 || a.y > H + m + 40) || a.t < 2;
+  }
+
+  // which part of the aircraft a point lands on (0 for none), with coordinates left in CS
+  const CS = { u: 0, v: 0, rr: 0, t: 0 }, CH = { u: 0, v: 0, rr: 0, t: 0 };
+  function sampleCraft(a: Craft, px: number, py: number): number {
+    const dx = px - a.x, dy = py - a.y;
+    const u = (dx * a.cos + dy * a.sin) / a.L, v = (-dx * a.sin + dy * a.cos) / a.L, av = Math.abs(v);
+    const tv = av / Math.max(0.1, Math.abs(Math.cos(a.roll)));   // rolling foreshortens the wings
+    CS.u = u; CS.v = v; CS.rr = 0; CS.t = 0;
+    if (a.kind === "plane") {
+      // propeller: the spinner, and a blade whose visible length pulses as it turns
+      if (u > 0.41 && u < 0.47 && (av < 0.025 || (Math.abs(u - 0.44) < 0.02 && av < 0.2 * Math.abs(Math.cos(a.spin))))) return PROP;
+      if (u > -0.5 && u < 0.42) {
+        const hw = u > 0.3 ? 0.065 * Math.sqrt(Math.max(0, 1 - ((u - 0.3) / 0.12) ** 2)) : u > -0.05 ? 0.065 : 0.065 - 0.04 * ((-0.05 - u) / 0.45);
+        if (av < hw) { CS.rr = v / hw; return u > 0.12 && u < 0.26 && av < 0.04 ? CANOPY : FUSE; }
+      }
+      if (u > 0 && u < 0.18 && tv < 0.68 && (tv < 0.6 || ((tv - 0.6) / 0.08) ** 2 + ((u - 0.09) / 0.09) ** 2 < 1)) { CS.t = tv / 0.68; return WING; }
+      if (u > -0.5 && tv < 0.24 && u < -0.38 - 0.15 * tv) { CS.t = tv / 0.24; return STAB; }
+      return 0;
+    }
+    // jet: afterburner, fuselage with canopy and twin nozzles, swept wings, tailplanes
+    const fl = 0.16 * a.flick;
+    if (u < -0.49 && u > -0.49 - fl) { const k = (-0.49 - u) / fl; if (Math.abs(av - 0.045) < 0.03 * (1 - k)) return FLAME; }
+    if (u > -0.5 && u < 0.5) {
+      const hw = u > 0.18 ? (0.075 * (0.5 - u)) / 0.32 : u > -0.28 ? 0.075 : 0.09;
+      if (av < hw) {
+        CS.rr = v / hw;
+        if (u < -0.44) return NOZZLE;
+        if (u > 0.1 && u < 0.3 && av < 0.035 * Math.sqrt(Math.max(0, 1 - ((u - 0.2) / 0.1) ** 2))) return CANOPY;
+        return FUSE;
+      }
+    }
+    const t = tv / 0.5;
+    if (t <= 1 && u <= 0.1 - 0.4 * t && u >= -0.3 - 0.03 * t) { CS.t = t; return WING; }
+    const t2 = tv / 0.24;
+    if (t2 <= 1 && u <= -0.33 - 0.12 * t2 && u >= -0.48) { CS.t = t2; return STAB; }
+    return 0;
+  }
+
+  function craftTone(a: Craft, reg: number, u: number, t: number): Tone {
+    if (reg === FLAME) return u > -0.56 ? "orange" : "red";
+    if (reg === CANOPY) return "teal";
+    if (reg === PROP || reg === NOZZLE) return "dense";
+    if (a.kind === "plane") {
+      // red and white stunt livery
+      if (reg === STAB || (reg === WING && t > 0.72) || (reg === FUSE && (u > 0.3 || (u > -0.26 && u < -0.16)))) return "red";
+      return "pale";
+    }
+    return reg === FUSE ? "pale" : "mid";
+  }
+
+  function rasterCraft(a: Craft) {
+    const R = a.L * 0.85 + cw * 2;
+    const c0 = Math.max(0, Math.floor((a.x - R) / cw)), c1 = Math.min(cols - 1, Math.ceil((a.x + R) / cw));
+    const r0 = Math.max(0, Math.floor((a.y - R) / CELL_H)), r1 = Math.min(rows - 1, Math.ceil((a.y + R) / CELL_H));
+    if (c0 > c1 || r0 > r1) return;
+    const lx = -0.5, ly = -0.6, lz = 0.62, latX = -a.sin, latY = a.cos;
+    covered.length = 0;
+    for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
+      const idx = r * cols + c;
+      if (chars[idx] && chars[idx] !== " ") continue;   // birds fly below, so they stay in front
+      let reg = sampleCraft(a, (c + 0.5) * cw, (r + 0.5) * CELL_H);
+      if (reg) Object.assign(CH, CS);
+      let n = 0, sx = 0, sy = 0;
+      for (let k = 0; k < 4; k++) {
+        const ox = SUB[k * 2], oy = SUB[k * 2 + 1], g = sampleCraft(a, (c + ox) * cw, (r + oy) * CELL_H);
+        if (!g) continue;
+        n++; sx += (ox - 0.5) * cw; sy += (oy - 0.5) * CELL_H;
+        if (!reg) { reg = g; Object.assign(CH, CS); }
+      }
+      if (!reg) continue;
+      covered.push(idx);
+
+      const tone = craftTone(a, reg, CH.u, CH.t), tr = toneRole(tone);
+      let ch: string, ro = tr, al: number;
+      if (reg === FLAME) {
+        ch = "*#%+"[Math.floor(Math.random() * 4)]; al = 0.9;
+      } else if (reg === PROP) {
+        ch = dirChar(latX, latY); al = 0.85;
+      } else if (n <= 2) {
+        ch = sx || sy ? contour(sx, sy) : dirChar(a.cos, a.sin);
+        ro = tone === "orange" || tone === "red" || tone === "teal" ? tr : 1; al = 1;
+      } else {
+        // fuselage as a cylinder, wings as flat panels, all tilted by the roll
+        let nl: number, nz: number;
+        if (reg === FUSE || reg === CANOPY || reg === NOZZLE) {
+          const phi = Math.asin(Math.max(-1, Math.min(1, CH.rr))) + a.roll; nl = Math.sin(phi); nz = Math.cos(phi);
+        } else { nl = Math.sin(a.roll); nz = Math.cos(a.roll); }
+        const lit = Math.max(0, nl * (latX * lx + latY * ly) + nz * lz);
+        const dark = Math.min(1, Math.max(0, 1 - lit)), ramp = toneRamp(tone);
+        ch = ramp[Math.min(ramp.length - 1, Math.floor(dark * ramp.length))];
+        al = toneAlpha(tone, dark);
+      }
+      chars[idx] = ch; role[idx] = ro; alpha[idx] = al;
+    }
+    clearAround();
+  }
+
+  function stepAircraft(dt: number) {
+    if (!reduced) {
+      if (time > nextPlane) { launch("plane"); nextPlane = Infinity; }
+      if (time > nextJet) { launch("jet"); nextJet = Infinity; }
+    }
+    crafts = crafts.filter((a) => {
+      if (stepCraft(a, dt)) return true;
+      if (a.kind === "plane") nextPlane = time + rand(22, 40); else nextJet = time + rand(28, 50);
+      return false;
+    });
+    for (const a of crafts) rasterCraft(a);
+
+    // contrail: each puff grows and thins as it ages, drifting on the wind until it's gone
+    vapor.fill(0);
+    puffs = puffs.filter((p) => { p.age += dt; p.x += p.vx * dt; p.y += p.vy * dt; return p.age < p.life; });
+    for (const p of puffs) {
+      const k = p.age / p.life, rad = 3 + 10 * k, str = Math.pow(1 - k, 1.3) * Math.min(1, p.age / 0.08) * 0.85;
+      const c0 = Math.max(0, Math.floor((p.x - rad) / cw)), c1 = Math.min(cols - 1, Math.floor((p.x + rad) / cw));
+      const r0 = Math.max(0, Math.floor((p.y - rad) / CELL_H)), r1 = Math.min(rows - 1, Math.floor((p.y + rad) / CELL_H));
+      for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
+        const d = Math.hypot((c + 0.5) * cw - p.x, (r + 0.5) * CELL_H - p.y) / rad;
+        if (d < 1) { const i = r * cols + c; vapor[i] = Math.min(1, vapor[i] + str * (1 - d * d)); vdir[i] = p.d; }
       }
     }
   }
@@ -462,6 +662,7 @@ export function startSky(stage: HTMLElement, canvas: HTMLCanvasElement, photo: H
 
     for (const b of birds) { stepBird(b, dt); stampTips(b, dt); }
     for (const b of birds) rasterBird(b);
+    stepAircraft(dt);
     stepFlock(dt);
 
     seeds = seeds.filter((p) => {
@@ -475,10 +676,17 @@ export function startSky(stage: HTMLElement, canvas: HTMLCanvasElement, photo: H
     rings = rings.filter((rp) => { rp.r += 26 * dt; rp.life -= 0.45 * dt; return rp.life > 0.05; });
     for (const rp of rings) stampRing(rp);
 
-    // open sky: wingtip trails, then slow-drifting clouds, then stars
+    // open sky: contrails, wingtip trails, then slow-drifting clouds, then stars
     const drift = time * 9;
     for (let i = 0; i < total; i++) {
       if (chars[i]) continue;
+      const vp = vapor[i];
+      if (vp > 0.07) {
+        // a solid line at the fresh core, softening to wisps and dots as it spreads
+        chars[i] = vp > 0.6 ? (vdir[i] === 0 ? "=" : DIRS[vdir[i]]) : vp > 0.38 ? "~" : vp > 0.2 ? ":" : ".";
+        role[i] = !colors.light && vp > 0.45 ? 1 : 7; alpha[i] = 0.2 + 0.6 * vp;
+        continue;
+      }
       if (wake[i] > 0.06) { chars[i] = wake[i] > 0.3 ? DIRS[wdir[i]] : "."; role[i] = 2; alpha[i] = Math.min(0.6, wake[i] * 1.2); continue; }
       const x = (i % cols) * cw, y = ((i / cols) | 0) * CELL_H;
       const n = 0.65 * noise((x + drift) / 120, y / 60) + 0.35 * noise((x + drift * 1.4) / 45, y / 24);
